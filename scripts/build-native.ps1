@@ -39,7 +39,8 @@ Write-Host "Built: $exe"
 Write-Host 'This is an initial integration build, not yet a validated playable port.'
 
 $patchedSeamText = [System.Text.RegularExpressions.Regex]::Replace(
-    $seamText, $seamPattern, '$1' + '1' + '$2', 1)
+    $seamText, $seamPattern,
+    [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $m.Groups[1].Value + '1' + $m.Groups[2].Value }, 1)
 if ($patchedSeamText -eq $seamText -and $seamText -notmatch '(?m)^\\s*int\\s+adaptive_view\\s*=\\s*1\\s*;') {
     throw 'Could not enable adaptive widescreen as the first-run launcher default; pinned launcher_seam.h may have changed.'
 }
