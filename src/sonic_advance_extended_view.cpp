@@ -232,11 +232,16 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
     std::uint16_t entry = 0;
 
     if (source.level_map) {
-        // A Sonic Advance stage map is a grid of metatiles. Each metatile points
-        // into a 12x12-tile pattern in Background::layout. The entire map is
-        // already resident/readable; only the 32x32 hardware tilemap is streamed.
-        const int metatile_x = floor_div(tile_x, source.x_tiles);
-        const int metatile_y = floor_div(tile_y, source.y_tiles);
+        // Match the game's own tile upload path: each level-map background
+        // offsets the scrolling tile origin by unk1E/unk20 before indexing the
+        // metatile grid. Omitting this base shifts margin scenery at ring wrap.
+        const int map_tile_x = tile_x + source.tilemap_base_x;
+        const int map_tile_y = tile_y + source.tilemap_base_y;
+        // A stage map is a grid of metatiles. Each metatile points into a
+        // 12x12-tile pattern in Background::layout. The complete authored map
+        // stays resident/readable; only a 32x32 hardware tile window is streamed.
+        const int metatile_x = floor_div(map_tile_x, source.x_tiles);
+        const int metatile_y = floor_div(map_tile_y, source.y_tiles);
         if (metatile_x < 0 || metatile_y < 0 ||
             metatile_x >= source.map_width || metatile_y >= source.map_height) {
             // Out of the authored map: leave this layer transparent instead
@@ -250,8 +255,8 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
             std::uint16_t metatile = 0;
             if (map_address <= std::numeric_limits<std::uint32_t>::max() &&
                 read_u16(bus, static_cast<std::uint32_t>(map_address), &metatile)) {
-                const int in_x = positive_mod(tile_x, source.x_tiles);
-                const int in_y = positive_mod(tile_y, source.y_tiles);
+                const int in_x = positive_mod(map_tile_x, source.x_tiles);
+                const int in_y = positive_mod(map_tile_y, source.y_tiles);
                 const std::uint64_t tiles_per_metatile =
                     static_cast<std::uint64_t>(source.x_tiles) * source.y_tiles;
                 const std::uint64_t layout_index =
