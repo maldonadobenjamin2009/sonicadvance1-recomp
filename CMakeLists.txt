@@ -45,6 +45,7 @@ if(SONIC_BUILD_GAME_EXECUTABLE)
 
     add_executable(SonicAdvanceRecomp
         src/main.cpp
+        src/sonic_advance_extended_view.cpp
         ${GAME_GENERATED_SOURCES})
 
     set(GAME_RECOMPILED_SOURCES ${GAME_GENERATED_SOURCES})
