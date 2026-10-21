@@ -1,0 +1,21 @@
+# Local copyrighted game assets: never commit ROMs or BIOS files
+*.gba
+*.bin
+*.sav
+*.srm
+*.state
+roms/
+bios/
+
+# Build outputs
+build/
+out/
+dist/
+**/bin/
+**/obj/
+.vs/
+.vscode/
+
+# Machine-specific launcher settings
+launcher-settings.json
+**/launcher-settings.json
