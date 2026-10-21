@@ -14,6 +14,7 @@ gbarecomp/src/runtime/generated_bios/
 
 # Build outputs and local native runtime build
 build/
+build-native/
 out/
 dist/
 artifacts/

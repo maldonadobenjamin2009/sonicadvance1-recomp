@@ -17,7 +17,7 @@ foreach ($name in @('cmake', 'ninja', 'gcc', 'g++')) {
     }
 }
 
-$buildDir = Join-Path $root 'build'
+$buildDir = Join-Path $root 'build-native'
 cmake -S $root -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 if ($LASTEXITCODE -ne 0) { throw 'CMake configuration of SonicAdvanceRecomp failed.' }
 

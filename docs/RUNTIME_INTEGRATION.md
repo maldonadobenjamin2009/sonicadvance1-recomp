@@ -80,7 +80,7 @@ runtime. You can override the local paths:
 .\scripts\build-native.ps1 -Rom "D:\Games\sonic_advance_usa.gba" -Bios "D:\BIOS\gba_bios.bin"
 ~~~
 
-The output runner is build/SonicAdvanceRecomp.exe. The separate WinForms
+The output runner is build-native/SonicAdvanceRecomp.exe. The separate WinForms
 launcher is built by the existing Launcher CI workflow and can point to that
 runner. The runner accepts --rom, --bios, and --fullscreen.
 

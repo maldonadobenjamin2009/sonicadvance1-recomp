@@ -68,7 +68,7 @@ $env:Path = "C:\msys64\mingw64\bin;$env:Path"
 ~~~
 
 The script verifies file identities, recompiles the BIOS and game code, then
-builds build/SonicAdvanceRecomp.exe. See
+builds build-native/SonicAdvanceRecomp.exe. See
 [docs/RUNTIME_INTEGRATION.md](docs/RUNTIME_INTEGRATION.md) for the detailed
 process, troubleshooting, and validation checklist.
 
