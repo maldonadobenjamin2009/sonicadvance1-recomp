@@ -61,6 +61,9 @@ internal sealed class LauncherForm : Form
         Margin = new Padding(18, 12, 0, 0)
     };
     private readonly ProgressBar _progress = new() { Dock = DockStyle.Fill, Style = ProgressBarStyle.Blocks };
+    private readonly object _fileLogLock = new();
+    private string _logFilePath = "";
+    private StreamWriter? _logWriter;
     private readonly string _settingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "SonicAdvanceRecompBuilder", "builder-settings.json");
@@ -68,6 +71,7 @@ internal sealed class LauncherForm : Form
 
     public LauncherForm()
     {
+        InitializeFileLog();
         Text = "Sonic Advance Recomp — Builder";
         Width = 920;
         Height = 650;
@@ -165,8 +169,10 @@ internal sealed class LauncherForm : Form
         LoadSettings();
         RefreshFields();
         UpdateRomHashLabel();
+        AppendLog("Registro completo: " + _logFilePath);
         AppendLog("Preparado. Se admite Sonic Advance USA (ASOE, revisión 0) y una BIOS de GBA compatible.");
         AppendLog("Requisito de compilación: MSYS2 MINGW64 o UCRT64 con GCC/G++, CMake, Ninja y SDL2.");
+        FormClosed += (_, _) => { lock (_fileLogLock) { _logWriter?.Dispose(); _logWriter = null; } };
     }
 
     private static void AddRow(TableLayoutPanel layout, int row, string label,
@@ -351,7 +357,7 @@ internal sealed class LauncherForm : Form
             _status.Text = "No se pudo completar la compilación.";
             AppendLog("ERROR: " + ex);
             MessageBox.Show(this,
-                ex.Message + "\n\nEl registro completo queda en la ventana y se guarda en el perfil local al terminar el proceso.",
+                ex.Message + "\n\nRegistro completo de esta ejecución:\n" + _logFilePath,
                 "Error de compilación",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
@@ -563,6 +569,40 @@ internal sealed class LauncherForm : Form
         return Convert.ToHexString(SHA1.HashData(stream)).ToLowerInvariant();
     }
 
+    private void InitializeFileLog()
+    {
+        var besideBuilder = Path.Combine(AppContext.BaseDirectory, "sonicadvance-build.log");
+        try
+        {
+            _logFilePath = besideBuilder;
+            _logWriter = new StreamWriter(
+                new FileStream(besideBuilder, FileMode.Create, FileAccess.Write, FileShare.ReadWrite),
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)) { AutoFlush = true };
+            _logWriter.WriteLine($"Inicio del Builder: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        }
+        catch (Exception adjacentError)
+        {
+            // Keep diagnostics available if the executable is launched from a read-only folder.
+            var fallbackDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SonicAdvanceRecompBuilder");
+            try
+            {
+                Directory.CreateDirectory(fallbackDir);
+                _logFilePath = Path.Combine(fallbackDir, "sonicadvance-build.log");
+                _logWriter = new StreamWriter(
+                    new FileStream(_logFilePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite),
+                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)) { AutoFlush = true };
+                _logWriter.WriteLine($"No se pudo escribir junto al Builder ({besideBuilder}): {adjacentError.Message}");
+                _logWriter.WriteLine($"Inicio del Builder: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            }
+            catch
+            {
+                _logFilePath = besideBuilder + " (no se pudo crear; posiblemente carpeta sin permisos)";
+            }
+        }
+    }
+
     private void AppendLog(string line)
     {
         if (IsDisposed) return;
@@ -573,6 +613,12 @@ internal sealed class LauncherForm : Form
             return;
         }
 
+        lock (_fileLogLock)
+        {
+            try { _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss}] {line}"); }
+            catch (IOException) { }
+            catch (ObjectDisposedException) { }
+        }
         _log.AppendText(line + Environment.NewLine);
         if (_log.TextLength > 250_000)
             _log.Text = _log.Text[^180_000..];
