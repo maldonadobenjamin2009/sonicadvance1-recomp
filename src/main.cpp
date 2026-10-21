@@ -59,6 +59,14 @@ int main(int argc, char** argv) {
     options.launcher_region = "USA";
     options.launcher_game_config = gameConfigPath.c_str();
     options.launcher_save_path = "saves/sonic_advance_usa.sav";
+    // Host presentation: allow window resizing and the framework fullscreen hotkey
+    // (Alt+Enter by default). Adaptive widening remains opt-in in Video settings;
+    // Sonic Advance support is experimental until stage-specific scrolling,
+    // off-screen actor visibility and HUD anchoring are qualified.
+    options.freely_resizable_window = true;
+    options.resize_driven_view = true;
+    options.max_resize_view_width = 480;
+    options.launcher_expose_adaptive_view = true;
 
 #if defined(GBAGAME_RECOMP_UI)
     // Like MinishCapRecomp, the published game EXE contains the launcher UI and
