@@ -6,8 +6,9 @@ GBARecomp integration for **Sonic Advance (GBA)**.
 ## Current state
 
 - The Windows launcher project can be built by GitHub Actions.
-- It lets the user select a legally obtained ROM and GBA BIOS, checks known
-  SHA-1 identities, remembers local paths, and starts a companion
+- It lets the user select a legally obtained ROM and GBA BIOS, computes the
+  ROM SHA-1 for diagnostics (identity enforcement awaits a verified game config),
+  remembers local paths, and starts a companion
   `SonicAdvanceRecomp.exe` when that executable has been built.
 - **The playable native runner is not in this repository yet.** A generated
   `gbarecomp_game.lib` alone is not a game executable. The runner must link the
@@ -46,7 +47,7 @@ The output is placed at:
 launcher/bin/Release/net8.0-windows/win-x64/publish/SonicAdvanceLauncher.exe
 ```
 
-The same build is run by the `Build Windows Launcher` workflow. Download its
+The same build is run by the `Launcher CI` workflow. Download its
 `SonicAdvanceLauncher-windows-x64` artifact from the Actions run.
 
 ## Running it
