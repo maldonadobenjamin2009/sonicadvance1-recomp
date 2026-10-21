@@ -60,13 +60,14 @@ int main(int argc, char** argv) {
     options.launcher_region = "USA";
     options.launcher_game_config = gameConfigPath.c_str();
     options.launcher_save_path = "saves/sonic_advance_usa.sav";
-    // Host presentation: allow window resizing and the framework fullscreen hotkey
-    // (Alt+Enter by default). Adaptive widening remains opt-in in Display settings.
-    // The game-owned adapter reads the full live stage-map source for margins;
-    // stage-specific actor culling, HUD anchoring and transition coverage remain experimental.
+    // Host presentation follows the live drawable aspect ratio instead of a fixed
+    // 480px crop. The shared PPU supports up to 896 logical pixels (328 extra
+    // pixels per side); Sonic's adapter supplies authentic stage-map tiles for
+    // those margins. This is presentation-only: entity culling, HUD anchoring,
+    // and scene transitions still require real-game validation at extreme ratios.
     options.freely_resizable_window = true;
     options.resize_driven_view = true;
-    options.max_resize_view_width = 480;
+    options.max_resize_view_width = 896;
     options.extended_view_init = &sonic_advance::install_extended_view;
     options.extended_view_frame = &sonic_advance::update_extended_view;
     options.launcher_expose_adaptive_view = true;
