@@ -20,10 +20,7 @@ The build kit is embedded in the builder EXE.
 
 ### Requirements
 
-The builder needs the MSYS2 **MINGW64** toolchain installed locally, including
-GCC/G++, CMake, Ninja and SDL2. It runs those tools for you; you do not have to
-type the CMake/build commands manually. If the tools are missing, the builder
-shows which prerequisites are required.
+The builder needs an MSYS2 native toolchain installed locally: **MINGW64 or UCRT64**, including GCC/G++, CMake, Ninja and SDL2. It detects either complete environment and runs the tools for you; you do not have to type the CMake/build commands manually. The embedded GBARecomp CLI includes its required MinGW runtime DLLs. If tools are missing, the Builder lists what's missing and gives the matching pacman commands.
 
 Install/update MSYS2 from [msys2.org](https://www.msys2.org/). Open the **MSYS2
 MINGW64** terminal and run:
@@ -39,8 +36,7 @@ then install:
 pacman -S --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-SDL2 git
 ~~~
 
-The MINGW64 environment is expected at `C:\msys64\mingw64\bin`. UCRT64
-packages are not a substitute for the MINGW64 packages used by this build.
+Common paths are `C:\msys64\mingw64\bin` and `C:\msys64\ucrt64\bin`. Use a consistent package family inside one MSYS2 environment; don't mix MINGW64 package names into UCRT64.
 
 ### Download the Builder
 

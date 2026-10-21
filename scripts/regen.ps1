@@ -22,7 +22,7 @@ $tool = Join-Path $buildDir 'gba_recompile.exe'
 $requiredCommands = @('cmake', 'ninja', 'gcc', 'g++')
 foreach ($name in $requiredCommands) {
     if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
-        throw "Missing '$name'. Install the MSYS2 MINGW64 C++ toolchain and add C:\msys64\mingw64\bin to PATH."
+        throw "Missing '$name'. Install GCC/G++, CMake and Ninja in either MSYS2 MINGW64 or UCRT64 and add that environment's bin folder to PATH."
     }
 }
 

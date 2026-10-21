@@ -23,8 +23,8 @@ and generated code are not uploaded or distributed.
 
 Windows, MSYS2 MINGW64, GCC/G++, CMake, Ninja and SDL2. The builder runs the
 scripts automatically but the compiler and native libraries must be installed.
-MINGW64 binaries are expected at `C:\msys64\mingw64\bin`, with MSYS2's user
-utilities at `C:\msys64\usr\bin`.
+MINGW64 binaries are at `C:\msys64\mingw64\bin`; UCRT64 binaries are at
+`C:\msys64\ucrt64\bin`. MSYS2's user utilities are at `C:\msys64\usr\bin`.
 
 ## ROM and BIOS identity
 

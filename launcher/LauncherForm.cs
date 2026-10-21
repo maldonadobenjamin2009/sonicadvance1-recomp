@@ -19,7 +19,12 @@ internal sealed class LauncherForm : Form
 {
     private const string ExpectedRomSha1 = "d842afa7dd1e84de08addb94a51506f1bcafd551";
     private const string ExpectedBiosSha1 = "300c20df6731a33952ded8c436f7f186d25d3492";
-    private const string MsysRoot = @"C:\msys64\mingw64\bin";
+    private static readonly string[] ToolchainCandidates =
+    {
+        @"C:\msys64\mingw64\bin",
+        @"C:\msys64\ucrt64\bin"
+    };
+    private const string MsysUserBin = @"C:\msys64\usr\bin";
 
     private readonly TextBox _romPath = new() { ReadOnly = true, Dock = DockStyle.Fill };
     private readonly TextBox _biosPath = new() { ReadOnly = true, Dock = DockStyle.Fill };
@@ -161,7 +166,7 @@ internal sealed class LauncherForm : Form
         RefreshFields();
         UpdateRomHashLabel();
         AppendLog("Preparado. Se admite Sonic Advance USA (ASOE, revisión 0) y una BIOS de GBA compatible.");
-        AppendLog("Requisito de compilación: MSYS2 MINGW64 con GCC/G++, CMake, Ninja y SDL2.");
+        AppendLog("Requisito de compilación: MSYS2 MINGW64 o UCRT64 con GCC/G++, CMake, Ninja y SDL2.");
     }
 
     private static void AddRow(TableLayoutPanel layout, int row, string label,
@@ -269,9 +274,8 @@ internal sealed class LauncherForm : Form
                 throw new InvalidOperationException("Elegí también una BIOS compatible de GBA; el runtime recompila la BIOS real.");
             if (string.IsNullOrWhiteSpace(_settings.OutputDirectory))
                 throw new InvalidOperationException("Elegí la carpeta en la que querés guardar el ejecutable.");
-            if (!Directory.Exists(MsysRoot))
-                throw new InvalidOperationException(
-                    "No encuentro MSYS2 MINGW64 en C:\\msys64\\mingw64. Instalá MSYS2 y los paquetes mingw-w64-x86_64-toolchain, mingw-w64-x86_64-cmake, mingw-w64-x86_64-ninja y mingw-w64-x86_64-SDL2. UCRT64 por sí solo no reemplaza el entorno MINGW64 de esta compilación.");
+            var toolchainBin = FindToolchainBin();
+            AppendLog("Toolchain MSYS2 seleccionado: " + toolchainBin);
 
             var romHash = GetSha1(_settings.RomPath);
             if (!romHash.Equals(ExpectedRomSha1, StringComparison.OrdinalIgnoreCase))
@@ -283,11 +287,11 @@ internal sealed class LauncherForm : Form
                     $"La BIOS no coincide con la revisión compatible. SHA-1 esperado: {ExpectedBiosSha1}; recibido: {biosHash}.");
 
             var missing = new[] { "gcc.exe", "g++.exe", "cmake.exe", "ninja.exe", "SDL2.dll" }
-                .Where(name => !File.Exists(Path.Combine(MsysRoot, name)))
+                .Where(name => !File.Exists(Path.Combine(toolchainBin, name)))
                 .ToArray();
             if (missing.Length > 0)
                 throw new InvalidOperationException(
-                    $"Faltan paquetes de MSYS2 MINGW64: {string.Join(", ", missing)}. Actualizá MSYS2 con pacman -Suy y reinstalá los paquetes requeridos.");
+                    $"Faltan herramientas en {toolchainBin}: {string.Join(", ", missing)}.");
 
             _buildButton.Enabled = false;
             _progress.Style = ProgressBarStyle.Marquee;
@@ -305,7 +309,7 @@ internal sealed class LauncherForm : Form
                 throw new InvalidOperationException("El kit integrado está incompleto: no se encontró scripts/build-native.ps1.");
 
             _status.Text = "Recompilando Sonic Advance y enlazando el ejecutable nativo…";
-            var exitCode = await RunBuildScriptAsync(kitRoot, script, _settings.RomPath, _settings.BiosPath);
+            var exitCode = await RunBuildScriptAsync(kitRoot, script, _settings.RomPath, _settings.BiosPath, toolchainBin);
             if (exitCode != 0)
                 throw new InvalidOperationException($"La compilación terminó con código {exitCode}. Revisá el registro de salida de esta ventana.");
 
@@ -316,7 +320,7 @@ internal sealed class LauncherForm : Form
             _status.Text = "Empaquetando el ejecutable del juego…";
             var outDir = Path.GetFullPath(_settings.OutputDirectory);
             Directory.CreateDirectory(outDir);
-            PackageGame(kitRoot, nativeExe, outDir, _settings.RomPath, _settings.BiosPath);
+            PackageGame(kitRoot, nativeExe, outDir, _settings.RomPath, _settings.BiosPath, toolchainBin);
 
             var finalExe = Path.Combine(outDir, "SonicAdvanceRecomp.exe");
             _status.Text = "Ejecutable generado: " + finalExe;
@@ -361,7 +365,7 @@ internal sealed class LauncherForm : Form
     }
 
     private async Task<int> RunBuildScriptAsync(string kitRoot, string script,
-        string romPath, string biosPath)
+        string romPath, string biosPath, string toolchainBin)
     {
         var start = new ProcessStartInfo
         {
@@ -383,7 +387,9 @@ internal sealed class LauncherForm : Form
         start.ArgumentList.Add("-Bios");
         start.ArgumentList.Add(Path.GetFullPath(biosPath));
 
-        start.Environment["Path"] = MsysRoot + ";C:\\msys64\\usr\\bin;" +
+        var embeddedCompilerBin = Path.Combine(kitRoot, "gbarecomp", "build-native");
+        start.Environment["Path"] = toolchainBin + ";" + MsysUserBin + ";" +
+                                    embeddedCompilerBin + ";" +
                                     (Environment.GetEnvironmentVariable("Path") ?? "");
         using var process = new Process { StartInfo = start, EnableRaisingEvents = true };
         process.OutputDataReceived += (_, e) => { if (e.Data is not null) AppendLog(e.Data); };
@@ -398,6 +404,33 @@ internal sealed class LauncherForm : Form
         await process.WaitForExitAsync();
         process.WaitForExit(); // Drain asynchronous stdout/stderr callbacks.
         return process.ExitCode;
+    }
+
+    private static string FindToolchainBin()
+    {
+        var required = new[] { "gcc.exe", "g++.exe", "cmake.exe", "ninja.exe", "SDL2.dll" };
+        foreach (var candidate in ToolchainCandidates)
+        {
+            if (required.All(name => File.Exists(Path.Combine(candidate, name))))
+                return candidate;
+        }
+
+        var diagnostics = ToolchainCandidates.Select(candidate =>
+        {
+            var missing = required.Where(name => !File.Exists(Path.Combine(candidate, name))).ToArray();
+            return $"  {candidate}: " +
+                (Directory.Exists(candidate)
+                    ? "faltan " + string.Join(", ", missing)
+                    : "directorio no encontrado");
+        });
+
+        throw new InvalidOperationException(
+            "No encontré un toolchain MSYS2 completo. El Builder detecta MINGW64 y UCRT64, " +
+            "pero necesita GCC/G++, CMake, Ninja y SDL2.\n\n" +
+            string.Join("\n", diagnostics) +
+            "\n\nEn la terminal MSYS2 elegida, ejecutá primero pacman -Suy; si te pide cerrar la terminal, reabrila y repetí el comando hasta completar la actualización. Después instalá:\n" +
+            "MINGW64: pacman -S --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-SDL2\n" +
+            "UCRT64: pacman -S --needed mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-SDL2");
     }
 
     private static string ExtractEmbeddedBuildKit()
@@ -452,7 +485,7 @@ internal sealed class LauncherForm : Form
     }
 
     private static void PackageGame(string kitRoot, string nativeExe, string outputDir,
-        string romPath, string biosPath)
+        string romPath, string biosPath, string toolchainBin)
     {
         File.Copy(nativeExe, Path.Combine(outputDir, "SonicAdvanceRecomp.exe"), overwrite: true);
 
@@ -475,13 +508,13 @@ internal sealed class LauncherForm : Form
             "libintl-8.dll", "zlib1.dll"
         })
         {
-            var source = Path.Combine(MsysRoot, dll);
+            var source = Path.Combine(toolchainBin, dll);
             if (File.Exists(source))
                 File.Copy(source, Path.Combine(outputDir, dll), overwrite: true);
         }
 
         if (!File.Exists(Path.Combine(outputDir, "SDL2.dll")))
-            throw new FileNotFoundException("No se encontró SDL2.dll en MSYS2 MINGW64 para completar el paquete.");
+            throw new FileNotFoundException($"No se encontró SDL2.dll en {toolchainBin} para completar el paquete.");
     }
 
     private static string SetSectionPath(string toml, string section, string value)

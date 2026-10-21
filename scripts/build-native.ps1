@@ -13,7 +13,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Regenerating Sonic Advance code failed.' }
 
 foreach ($name in @('cmake', 'ninja', 'gcc', 'g++')) {
     if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
-        throw "Missing '$name'. Add C:\msys64\mingw64\bin to PATH and try again."
+        throw "Missing '$name'. Add the selected MSYS2 MINGW64 or UCRT64 bin folder and C:\msys64\usr\bin to PATH and try again."
     }
 }
 
