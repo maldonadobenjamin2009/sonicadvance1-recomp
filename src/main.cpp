@@ -1,7 +1,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "runtime.h"
@@ -18,12 +20,29 @@ constexpr std::uint32_t kRomCrc32 = 0x63F70FD8u;
 void print_usage() {
     std::printf(
         "SonicAdvanceRecomp [--rom <path>] [--bios <path>] [game.toml]\n"
-        "Requires the verified Sonic Advance (USA, ASOE) ROM and a GBA BIOS dump.\n"
+        "Requires Sonic Advance USA (ASOE, revision 0) and a compatible GBA BIOS.\n"
         "Run without an explicit ROM path to open the integrated launcher.\n");
 }
 }  // namespace
 
 int main(int argc, char** argv) {
+    // Treat the executable folder as the working directory. The Builder writes
+    // game.toml next to SonicAdvanceRecomp.exe and stores local absolute paths
+    // there, so launching from Explorer or a shortcut finds the same config.
+    std::error_code fsError;
+    std::filesystem::path executablePath = argc > 0 && argv[0]
+        ? std::filesystem::path(argv[0])
+        : std::filesystem::current_path();
+    executablePath = std::filesystem::absolute(executablePath, fsError);
+    if (fsError) {
+        fsError.clear();
+        executablePath = std::filesystem::current_path() / executablePath;
+    }
+    const auto executableDirectory = executablePath.has_parent_path()
+        ? executablePath.parent_path()
+        : std::filesystem::current_path();
+    std::filesystem::current_path(executableDirectory, fsError);
+
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--help") == 0 ||
             std::strcmp(argv[i], "-h") == 0) {
@@ -32,18 +51,19 @@ int main(int argc, char** argv) {
         }
     }
 
+    const std::string gameConfigPath = (executableDirectory / "game.toml").string();
     gbarecomp::RunOptions options;
     options.builtin_game_name = kGameName;
     options.builtin_rom_sha1 = kRomSha1;
     options.builtin_rom_crc32 = kRomCrc32;
     options.launcher_region = "USA";
-    options.launcher_game_config = "game.toml";
+    options.launcher_game_config = gameConfigPath.c_str();
     options.launcher_save_path = "saves/sonic_advance_usa.sav";
 
 #if defined(GBAGAME_RECOMP_UI)
-    // Like MinishCapRecomp, the pre-boot UI only chooses and verifies the
-    // player's own files/settings. The static game code was generated when
-    // this executable was built; this is not an arbitrary-ROM compiler UI.
+    // Like MinishCapRecomp, the published game EXE contains the launcher UI and
+    // the statically generated guest code. Recompilation from the user's ROM
+    // is handled by the separate Builder EXE before this runner is produced.
     std::vector<std::string> args(argv, argv + argc);
     if (game_launcher_preboot(args, options)) return 0;
 

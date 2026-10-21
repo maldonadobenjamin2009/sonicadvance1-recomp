@@ -1,85 +1,67 @@
-# GBARecomp runtime and integrated launcher
+# GBARecomp runtime and Builder EXE
 
-The native runner uses the shared GBARecomp runtime and the same general
-pre-boot launcher pattern as
-[MinishCapRecomp](https://github.com/mstan/MinishCapRecomp). The
-`recomp-ui` and `gbarecomp` submodules are pinned in the repository.
+This project separates two stages, similar to
+[MinishCapRecomp](https://github.com/mstan/MinishCapRecomp):
 
-## What "one EXE like Minish Cap" means
+1. **Builder EXE** — takes the player's local Sonic Advance USA ROM and
+   compatible GBA BIOS, then runs the static recompiler and native compiler on
+   the player's Windows machine.
+2. **Game EXE** — the resulting `SonicAdvanceRecomp.exe` contains the generated
+   code for the supported Sonic Advance revision, the GBARecomp runtime and
+   MinishCap-style pre-boot UI. The ROM/BIOS stay external and are selected by
+   the user for runtime verification.
 
-`SonicAdvanceRecomp.exe` contains both the native game runner and the
-pre-boot launcher. At startup the launcher lets the player select their own
-ROM and BIOS, verifies the configured game identity, and passes ordinary
-`--rom`/`--bios` arguments to the runtime. It remembers player settings.
+## Why this is local
 
-The static recompiler itself runs at build time: `gba_recompile` reads the
-verified ROM/BIOS and emits game-specific native C/C++ files, which are then
-compiled and linked into the executable. The launcher is not a general-purpose
-tool for turning any arbitrary GBA ROM into a new native executable at runtime.
-That is the same key distinction in MinishCapRecomp's design.
+GitHub's `workflow_dispatch` inputs are not a native binary-file upload field.
+The public Action therefore builds a **builder application**, not a game from a
+ROM it cannot receive. The user opens the Builder EXE and selects their local
+ROM and BIOS; the generated native C/C++ is compiled locally. The ROM, BIOS,
+and generated code are not uploaded or distributed.
 
-## Supported ROM configuration
+## Build prerequisites
 
-The starting profile targets **Sonic Advance (USA, ASOE, revision 0)**:
+Windows, MSYS2 MINGW64, GCC/G++, CMake, Ninja and SDL2. The builder runs the
+scripts automatically but the compiler and native libraries must be installed.
+MINGW64 binaries are expected at `C:\msys64\mingw64\bin`, with MSYS2's user
+utilities at `C:\msys64\usr\bin`.
 
-- SHA-1: `d842afa7dd1e84de08addb94a51506f1bcafd551`
-- MD5: `49ecc8ef1988e7ae81fbda1b4cf71eed`
-- CRC32: `63F70FD8`
-- ROM size: 8 MiB
-- Save device: 64 KiB Flash
+## ROM and BIOS identity
 
-The BIOS is checked against SHA-1
-`300c20df6731a33952ded8c436f7f186d25d3492`. Build scripts reject an unknown
-ROM revision or a mismatched BIOS.
+The only configured ROM profile currently is Sonic Advance USA (ASOE, revision 0):
 
-## Local native build
+- ROM SHA-1: `d842afa7dd1e84de08addb94a51506f1bcafd551`
+- ROM MD5: `49ecc8ef1988e7ae81fbda1b4cf71eed`
+- ROM CRC32: `63F70FD8`
+- BIOS SHA-1: `300c20df6731a33952ded8c436f7f186d25d3492`
 
-Install Git, CMake, Ninja, and MSYS2 MINGW64 GCC/G++ plus SDL2. Initialize the
-submodules:
+Other regions, revisions, patched or trimmed ROMs are rejected until configured
+and reviewed separately.
 
-~~~powershell
-git submodule update --init --recursive
-~~~
+## Running the Builder
 
-Place your own files locally, without committing them:
+Download the `SonicAdvanceRecompBuilder-windows-x64` artifact from the successful
+[Sonic Advance Recomp Builder EXE workflow](https://github.com/maldonadobenjamin2009/sonicadvance1-recomp/actions/workflows/launcher-ci.yml).
 
-- `roms/sonic_advance_usa.gba`
-- `gbarecomp/bios/gba_bios.bin`
+The user selects a ROM, BIOS and output directory, then clicks **GENERAR EXE
+DEL JUEGO**. The builder runs `scripts/build-native.ps1`, which recompiles BIOS
+and game code, and then invokes CMake/Ninja to link the game. It copies the
+resulting EXE, `game.toml`, SDL2 and MinGW runtime DLLs, and generated launcher
+assets into the output folder. The ROM, BIOS and generated game C/C++ remain in
+the user's local workspace and are not copied into that output folder.
 
-Then build from PowerShell:
+## Relationship to MinishCapRecomp
 
-~~~powershell
-$env:Path = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$env:Path"
-.\scripts\build-native.ps1
-~~~
+MinishCap's published game EXE is already compiled from ROM-derived native code;
+its pre-boot launcher selects/validates the matching user ROM/BIOS. The ROM does
+not get translated into a new EXE by that launcher. Here, the Builder EXE is an
+extra authoring tool that automates the compile process before producing the
+MinishCap-style game EXE.
 
-The output is `build-native/SonicAdvanceRecomp.exe`. The launcher UI is linked
-into the native executable; it is no longer necessary to select a separate
-runner executable in the legacy WinForms helper.
+## Validation status
 
-## GitHub Actions workflow on a local runner
-
-A GitHub-hosted runner does not have your ROM or BIOS, and this public project
-does not contain generated ROM-derived source. Therefore the workflow that
-builds the final game runs only on a Windows x64 self-hosted runner and is
-triggered manually. Enter absolute local paths for the ROM and BIOS and an
-output folder. It creates a ZIP containing the combined native EXE, launcher
-assets and required DLLs on your PC. It intentionally does not publish this
-ROM-derived package as a public Actions artifact.
-
-The regular hosted CI only compile-checks the launcher library and the
-GBARecomp toolchain; it does not claim that it has built a playable Sonic
-Advance executable.
-
-## Validation status and next tasks
-
-This is still an integration scaffold, not yet a validated playable Sonic
-Advance port. A successful compile proves that the toolchain and UI link
-together, but not that Sonic boots or has correct controls, sound, saves,
-interrupts, or copied-code behavior.
-
-After the first native build, validate BIOS handoff, title screen, new game,
-several zones, boss/bonus routes, sound, Flash save/reload and shutdown.
-Capture unresolved indirect targets and code copied to RAM/stack; add
-game-specific metadata only after checking it against the exact ROM. Do not
-commit generated/, BIOS data, ROMs, saves, or runtime caches.
+This remains an integration scaffold, not a validated playable Sonic Advance
+port. CI can build the builder and check GBARecomp/launcher sources, but the
+actual game-code build must use the user's exact ROM/BIOS locally and remains
+subject to compilation and gameplay testing. Do not publish ROM/BIOS files,
+saves, or ROM-derived generated C/C++.

@@ -1,36 +1,125 @@
-name: Launcher CI
+name: Sonic Advance Recomp Builder EXE
 
 on:
   push:
     branches: [main]
     paths:
+      - ".gitmodules"
+      - "CMakeLists.txt"
+      - "game.toml"
+      - "scripts/**"
+      - "src/**"
       - "launcher/**"
       - ".github/workflows/launcher-ci.yml"
+      - "gbarecomp"
+      - "recomp-ui"
   pull_request:
     paths:
+      - ".gitmodules"
+      - "CMakeLists.txt"
+      - "game.toml"
+      - "scripts/**"
+      - "src/**"
       - "launcher/**"
       - ".github/workflows/launcher-ci.yml"
+      - "gbarecomp"
+      - "recomp-ui"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build-launcher:
+  build-builder:
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Checkout source and runtime submodules
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Publish Windows launcher
-        run: dotnet publish .\launcher\SonicAdvanceLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\artifacts\launcher
-      - name: Upload launcher artifact
+
+      - name: Install MinGW, CMake, Ninja and SDL2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-SDL2
+
+      - name: Prebuild GBARecomp CLI for the embedded build kit
+        shell: msys2 {0}
+        run: |
+          cmake -S gbarecomp -B gbarecomp/build-native -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DGBARECOMP_COMPILER_CACHE=OFF
+          cmake --build gbarecomp/build-native --target gba_recompile --parallel 2
+          test -s gbarecomp/build-native/gba_recompile.exe
+
+      - name: Build an open-source build kit without any game assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kit = Join-Path $env:RUNNER_TEMP 'SonicAdvanceBuildKit'
+          if (Test-Path $kit) { Remove-Item $kit -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $kit | Out-Null
+
+          Copy-Item '.\CMakeLists.txt' $kit
+          Copy-Item '.\game.toml' $kit
+          Copy-Item '.\scripts' $kit -Recurse -Force
+          Copy-Item '.\src' $kit -Recurse -Force
+          Copy-Item '.\gbarecomp' $kit -Recurse -Force
+          Copy-Item '.\recomp-ui' $kit -Recurse -Force
+
+          # This archive is an embedded source/tool payload. Drop checkout
+          # metadata and build outputs, but retain licenses and source assets.
+          $remove = Get-ChildItem -LiteralPath $kit -Force -Recurse |
+            Where-Object { $_.Name -in @('.git', 'CMakeFiles', 'build', 'build-native', 'bin', 'obj', 'node_modules', '.vs', '__pycache__') } |
+            Sort-Object { $_.FullName.Length } -Descending
+          foreach ($item in $remove) {
+            if (Test-Path -LiteralPath $item.FullName) {
+              Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          Remove-Item (Join-Path $kit 'generated') -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $kit 'gbarecomp\src\runtime\generated_bios') -Recurse -Force -ErrorAction SilentlyContinue
+
+          $compilerDir = Join-Path $kit 'gbarecomp\build-native'
+          New-Item -ItemType Directory -Force -Path $compilerDir | Out-Null
+          Copy-Item '.\gbarecomp\build-native\gba_recompile.exe' $compilerDir
+
+          # Never put any user ROM, BIOS dump, save, or ROM-derived C/C++ in
+          # this kit. It contains the recompiler executable and source projects.
+          $unexpected = Get-ChildItem -LiteralPath $kit -File -Recurse |
+            Where-Object { $_.Extension -in @('.gba', '.sav', '.srm', '.state') -or $_.Name -eq 'gba_bios.bin' }
+          if ($unexpected) { throw "Unexpected private game data in build kit: $($unexpected.FullName -join ', ')" }
+
+          $archive = Join-Path $PWD 'launcher\buildkit.zip'
+          if (Test-Path $archive) { Remove-Item $archive -Force }
+          Compress-Archive -Path (Join-Path $kit '*') -DestinationPath $archive -CompressionLevel Optimal
+          Write-Host "Embedded build kit archive created: $archive"
+
+      - name: Publish the single-file Windows builder
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish .\launcher\SonicAdvanceLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\artifacts\builder
+          $exe = '.\artifacts\builder\SonicAdvanceRecompBuilder.exe'
+          if (-not (Test-Path $exe)) { throw 'SonicAdvanceRecompBuilder.exe was not created.' }
+          $size = (Get-Item $exe).Length
+          Write-Host "Builder EXE size: $size bytes"
+
+      - name: Upload only the builder EXE
         uses: actions/upload-artifact@v4
         with:
-          name: SonicAdvanceLauncher-windows-x64
-          path: artifacts/launcher/
+          name: SonicAdvanceRecompBuilder-windows-x64
+          path: artifacts/builder/SonicAdvanceRecompBuilder.exe
           if-no-files-found: error
           retention-days: 14
