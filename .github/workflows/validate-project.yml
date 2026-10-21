@@ -1,0 +1,33 @@
+name: Validate Project Structure
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -f launcher/SonicAdvanceLauncher.csproj
+          test -f launcher/Program.cs
+          test -f .gitignore
+          echo "Launcher scaffold files are present."
+      - name: Verify no ROM or BIOS files are tracked
+        shell: bash
+        run: |
+          if git ls-files | grep -E '\.(gba|sav|srm|state)$|(^|/)(roms|bios)/'; then
+            echo "Unexpected ROM/save/BIOS files are tracked."
+            exit 1
+          fi
+          echo "No ROM or BIOS files are tracked."
