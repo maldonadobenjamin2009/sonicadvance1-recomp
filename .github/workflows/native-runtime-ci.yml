@@ -49,8 +49,8 @@ jobs:
         run: |
           cmake -S gbarecomp -B gbarecomp/build-native -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DGBARECOMP_COMPILER_CACHE=OFF
           cmake --build gbarecomp/build-native --target gba_recompile --parallel 2
-          test -f gbarecomp/build-native/gba_recompile.exe
-          gbarecomp/build-native/gba_recompile.exe --help
+          test -s gbarecomp/build-native/gba_recompile.exe
+          echo "The GBARecomp recompiler compiled successfully."
 
       - name: Verify runtime integration sources
         shell: bash

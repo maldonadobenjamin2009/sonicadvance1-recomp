@@ -51,11 +51,26 @@ if (-not (Test-Path -LiteralPath $tool)) {
 $biosConfig = Join-Path $engine 'bios\gba_bios.toml'
 $generatedBios = Join-Path $engine 'src\runtime\generated_bios'
 New-Item -ItemType Directory -Force -Path $generatedBios | Out-Null
+
+# Never mix output from the older standalone CLI with the runtime-compatible
+# BIOS generator. Keep only generated source/header cleanup local.
+Get-ChildItem -LiteralPath $generatedBios -File |
+    Where-Object { $_.Extension -in @('.c', '.cpp', '.h') } |
+    Remove-Item -Force
+
 & $tool --bios $biosPath --config $biosConfig --out $generatedBios
 if ($LASTEXITCODE -ne 0) { throw 'GBA BIOS recompilation failed.' }
 
 $generated = Join-Path $root 'generated'
 New-Item -ItemType Directory -Force -Path $generated | Out-Null
+
+# The previous standalone build made recompiled_000.cpp... files with a
+# different ABI/schema. Clear old generated C/C++ sources before writing the
+# runtime-compatible corpus so CMake cannot accidentally compile stale shards.
+Get-ChildItem -LiteralPath $generated -File |
+    Where-Object { $_.Extension -in @('.c', '.cpp', '.h') } |
+    Remove-Item -Force
+
 & $tool --rom $romPath --config $configPath --out $generated --max-functions $MaxFunctions
 if ($LASTEXITCODE -ne 0) { throw 'Sonic Advance static code generation failed.' }
 
