@@ -59,7 +59,11 @@ is an experimental port and is not yet guaranteed to boot or be fully playable.
 
 The runner enables a freely resizable SDL window. **Alt+Enter** toggles borderless fullscreen by default; the shared runtime settings let you rebind the hotkey. The image keeps its GBA aspect ratio instead of stretching to fill the display.
 
-An opt-in **Adaptive view** mode is also exposed in the runtime's Display settings. It can widen the logical PPU presentation up to 480 pixels while preserving the original 160-pixel height, following the same shared `RunOptions` capability used by MinishCapRecomp and EmeraldRecomp. This first Sonic integration is experimental: unlike Minish Cap's room-buffer provider or Emerald's field-map provider, Sonic Advance does not yet have a validated stage-aware source for all background margins, actor culling, HUD placement, boss scenes, and transitions. The original 240×160 mode remains the default; wide mode must be treated as an experiment and may show tilemap wrapping or objects popping at scene boundaries.
+An opt-in **Adaptive view** mode is also exposed in the runtime's Display settings. It can widen the logical PPU presentation up to 480 pixels while preserving the original 160-pixel height, following the same shared `RunOptions` capability used by MinishCapRecomp and EmeraldRecomp.
+
+The game-owned adapter in `src/sonic_advance_extended_view.cpp` reads the live SA1 `gStageBackgroundsRam` records and resolves margin tiles through the full `metatileMap` and `layout` sources. The PPU no longer has to reuse unrelated entries from its 32×32 hardware tilemap ring for those samples; pixels outside the authored stage map remain transparent, and margins are pillarboxed when no active stage map is available. The reference data layout comes from the open-source [Sonic Advance decompilation](https://github.com/SAT-R/sa2).
+
+This is still experimental. The original 240×160 game simulation and central viewport remain unchanged; the expanded view reveals more of the existing stage map rather than changing physics. Sonic's entity spawn/cull guard is wider than the native viewport and accommodates the current 480-pixel ceiling, but individual actor draw checks, HUD edge anchoring, bosses, special stages, and every transition have not yet been qualified in-game. The original 240×160 mode remains the default.
 
 ## Relationship to MinishCapRecomp
 
