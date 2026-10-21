@@ -249,8 +249,7 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
                 static_cast<std::uint64_t>(source.metatile_map) + map_index * 2u;
             std::uint16_t metatile = 0;
             if (map_address <= std::numeric_limits<std::uint32_t>::max() &&
-                read_u16(gbarecomp::active_bus(),
-                         static_cast<std::uint32_t>(map_address), &metatile)) {
+                read_u16(bus, static_cast<std::uint32_t>(map_address), &metatile)) {
                 const int in_x = positive_mod(tile_x, source.x_tiles);
                 const int in_y = positive_mod(tile_y, source.y_tiles);
                 const std::uint64_t tiles_per_metatile =
@@ -261,8 +260,7 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
                 const std::uint64_t layout_address =
                     static_cast<std::uint64_t>(source.layout) + layout_index * 2u;
                 if (layout_address <= std::numeric_limits<std::uint32_t>::max() &&
-                    read_u16(gbarecomp::active_bus(),
-                             static_cast<std::uint32_t>(layout_address), &entry)) {
+                    read_u16(bus, static_cast<std::uint32_t>(layout_address), &entry)) {
                     action = 1;
                 }
             }
@@ -285,8 +283,7 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
         const std::uint64_t layout_address =
             static_cast<std::uint64_t>(source.layout) + layout_index * 2u;
         if (layout_address <= std::numeric_limits<std::uint32_t>::max() &&
-            read_u16(gbarecomp::active_bus(),
-                     static_cast<std::uint32_t>(layout_address), &entry)) {
+            read_u16(bus, static_cast<std::uint32_t>(layout_address), &entry)) {
             if (source.flags & kFlipXFlag) entry ^= kTileFlipX;
             if (source.flags & kFlipYFlag) entry ^= kTileFlipY;
             action = 1;
