@@ -448,9 +448,11 @@ internal sealed class LauncherForm : Form
         resource.CopyTo(memory);
         var archiveBytes = memory.ToArray();
         var kitHash = Convert.ToHexString(SHA256.HashData(archiveBytes)).ToLowerInvariant();
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SonicAdvanceRecompBuilder", "buildkit", kitHash);
+        // Keep the native build tree short. CMake FetchContent creates deeply nested
+        // paths under build-native/_deps; the previous AppData\Local\SonicAdvanceRecompBuilder
+        // root exceeded Ninja's 260-character path limit on Windows.
+        var shortKitHash = kitHash[..16];
+        var root = Path.Combine(Path.GetTempPath(), "SARB", shortKitHash);
 
         if (File.Exists(Path.Combine(root, "scripts", "build-native.ps1")) &&
             File.Exists(Path.Combine(root, "gbarecomp", "build-native", "gba_recompile.exe")))
