@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "runtime.h"
+#include "sonic_advance_extended_view.h"
 
 #if defined(GBAGAME_RECOMP_UI)
 #include "game_launcher_boot.h"
@@ -60,12 +61,14 @@ int main(int argc, char** argv) {
     options.launcher_game_config = gameConfigPath.c_str();
     options.launcher_save_path = "saves/sonic_advance_usa.sav";
     // Host presentation: allow window resizing and the framework fullscreen hotkey
-    // (Alt+Enter by default). Adaptive widening remains opt-in in Video settings;
-    // Sonic Advance support is experimental until stage-specific scrolling,
-    // off-screen actor visibility and HUD anchoring are qualified.
+    // (Alt+Enter by default). Adaptive widening remains opt-in in Display settings.
+    // The game-owned adapter reads the full live stage-map source for margins;
+    // stage-specific actor culling, HUD anchoring and transition coverage remain experimental.
     options.freely_resizable_window = true;
     options.resize_driven_view = true;
     options.max_resize_view_width = 480;
+    options.extended_view_init = &sonic_advance::install_extended_view;
+    options.extended_view_frame = &sonic_advance::update_extended_view;
     options.launcher_expose_adaptive_view = true;
 
 #if defined(GBAGAME_RECOMP_UI)
