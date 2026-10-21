@@ -1,30 +1,5 @@
-# Example only: not a validated production configuration.
-# Fill values only after verifying the exact ROM revision and runtime schema.
-# ROM and BIOS binaries must stay local and must not be committed.
-
-[game]
-name = "Sonic Advance"
-short_name = "sonic_advance"
-default_region = "usa"
-
-[bios]
-path = "../../gbarecomp/bios/gba_bios.bin"
-# sha1 = "<verified BIOS SHA-1>"
-
-[rom]
-path = "roms/sonicadvance.gba"
-# sha1 = "<verified Sonic Advance ROM SHA-1>"
-
-[recompiler]
-# entry_point = "<verified by the runtime-compatible scanner>"
-# seeds = "symbols/imported_symbols.tsv"
-# boundaries = "symbols/function_boundaries.tsv"
-# out_dir = "generated"
-# strict = true
-
-[save]
-# type = "<verify from Sonic Advance save hardware>"
-
-[runtime]
-debug_port = 19912
-window_title = "SonicAdvanceRecomp"
+# Superseded placeholder.
+# The canonical runtime-compatible starting profile now lives in ../game.toml.
+# Do not use this file for gba_recompile or the native runner.
+# Only add game-specific code_copy / extra_func data after verifying
+# live execution against the matching Sonic Advance USA (ASOE) ROM.

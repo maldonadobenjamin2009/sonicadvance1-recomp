@@ -1,70 +1,94 @@
-# Sonic Advance 1 Recomp — launcher bootstrap
+# Sonic Advance 1 Recomp
 
-This repository is the starting point for a Windows launcher and the native
-GBARecomp integration for **Sonic Advance (GBA)**.
+An experimental native-recompilation project for Sonic Advance (GBA), using
+the shared [GBARecomp](https://github.com/mstan/gbarecomp) runtime.
 
 ## Current state
 
-- The Windows launcher project can be built by GitHub Actions.
-- It lets the user select a legally obtained ROM and GBA BIOS, computes the
-  ROM SHA-1 for diagnostics (identity enforcement awaits a verified game config),
-  remembers local paths, and starts a companion
-  `SonicAdvanceRecomp.exe` when that executable has been built.
-- **The playable native runner is not in this repository yet.** A generated
-  `gbarecomp_game.lib` alone is not a game executable. The runner must link the
-  generated game code to the GBARecomp runtime and its game configuration.
-- ROMs, BIOS images, generated game code, save files, and build outputs must
-  not be committed to this public repository.
+- The Windows WinForms launcher builds through GitHub Actions and lets you
+  select your own ROM, BIOS and native runner.
+- The runtime is pinned as the gbarecomp Git submodule. The repository now
+  includes a game-specific CMake target, runtime entry point, ROM/BIOS identity
+  config, and local generation/build scripts.
+- **This is not yet a validated playable port.** Generated files in generated/
+  must be rebuilt locally from the exact supported ROM using the
+  runtime-compatible gba_recompile tool. Runtime paths, static coverage and
+  any copied-to-RAM functions still need gameplay validation.
+- ROMs, BIOS images, generated ROM-derived C/C++ code, saves, caches and build
+  outputs are not stored in this public repository.
 
-## References and approach
+## Reference implementations
 
-The intended native port layout follows the game integration used by
-[mstan/MinishCapRecomp](https://github.com/mstan/MinishCapRecomp) and the
-Gen 3 native recompiler projects
-[mstan/EmeraldRecomp](https://github.com/mstan/EmeraldRecomp),
-[mstan/FireRedLeafGreenRecomp](https://github.com/mstan/FireRedLeafGreenRecomp),
-and [mstan/RubySapphireRecomp](https://github.com/mstan/RubySapphireRecomp):
-a per-game runtime configuration, a host executable, runtime linkage, ROM/BIOS
-identity checks, and a pre-boot launcher.
+The runtime linkage and per-game config follow patterns in
+[WarioWareTwistedRecomp](https://github.com/mstan/WarioWareTwistedRecomp),
+[SuperMarioAdvance2Recomp](https://github.com/mstan/SuperMarioAdvance2Recomp),
+[SuperMarioAdvance4Recomp](https://github.com/mstan/SuperMarioAdvance4Recomp),
+[ShrekGBAVideoRecomp](https://github.com/mstan/ShrekGBAVideoRecomp),
+[MegaManZeroRecomp](https://github.com/mstan/MegaManZeroRecomp),
+[EmeraldRecomp](https://github.com/mstan/EmeraldRecomp),
+[FireRedLeafGreenRecomp](https://github.com/mstan/FireRedLeafGreenRecomp), and
+[RubySapphireRecomp](https://github.com/mstan/RubySapphireRecomp).
 
-[bryanthaboi/gen1recomp](https://github.com/bryanthaboi/gen1recomp) is a
-separate LÖVE2D-based native recreation, not a static recompiler. Its useful
-product-level ideas for this project are ROM import/verification, multiple
-local profiles, persistent settings, and keyboard/controller configuration;
-its engine is not interchangeable with GBARecomp.
+[Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) is a separate
+LÖVE2D recreation rather than a static recompiler. It is useful as a UX
+reference for ROM import, identity verification and separate local profiles,
+but it is not a runtime dependency.
 
-## Build the launcher locally (Windows)
+## Supported ROM profile
 
-Install the .NET 8 SDK, then run from the repository root:
+The initial configuration targets **Sonic Advance (USA, ASOE, revision 0)**:
 
-```powershell
-dotnet publish .\launcher\SonicAdvanceLauncher.csproj -c Release -r win-x64 --self-contained true
-```
+- SHA-1: d842afa7dd1e84de08addb94a51506f1bcafd551
+- MD5: 49ecc8ef1988e7ae81fbda1b4cf71eed
+- CRC32: 63F70FD8
 
-The output is placed at:
+Other regions/revisions are rejected until their own configuration is reviewed.
 
-```text
-launcher/bin/Release/net8.0-windows/win-x64/publish/SonicAdvanceLauncher.exe
-```
+## Build on Windows
 
-The same build is run by the `Launcher CI` workflow. Download its
-`SonicAdvanceLauncher-windows-x64` artifact from the Actions run.
+Requirements: Git, .NET 8 SDK (launcher), CMake, Ninja, and MSYS2 MINGW64
+GCC/G++ plus SDL2.
 
-## Running it
+Initialize the pinned runtime submodule:
 
-Place `SonicAdvanceLauncher.exe` next to `SonicAdvanceRecomp.exe`, or select
-the native runner manually in the launcher. Select your own Sonic Advance ROM
-and GBA BIOS. The ROM/BIOS are not included in this repository or workflow.
+~~~powershell
+git submodule update --init --recursive
+~~~
 
-The launcher can start only a compatible native runner; it cannot convert a
-ROM or turn `gbarecomp_game.lib` into a playable game on its own.
+Place your own files locally; **do not commit them**:
 
-## Next native-integration milestone
+- roms/sonic_advance_usa.gba
+- gbarecomp/bios/gba_bios.bin
 
-1. Import the GBARecomp runtime and launcher UI as pinned dependencies.
-2. Add verified Sonic Advance game configuration and symbol/function metadata.
-3. Regenerate code using the runtime-compatible `gba_recompile` flow.
-4. Link the generated sources with the runtime to produce
-   `SonicAdvanceRecomp.exe`.
-5. Add runtime smoke tests for startup, input, video, audio, saves, and clean
-   shutdown before publishing a playable build.
+From PowerShell:
+
+~~~powershell
+$env:Path = "C:\msys64\mingw64\bin;$env:Path"
+.\scripts\build-native.ps1
+~~~
+
+The script verifies file identities, recompiles the BIOS and game code, then
+builds build/SonicAdvanceRecomp.exe. See
+[docs/RUNTIME_INTEGRATION.md](docs/RUNTIME_INTEGRATION.md) for the detailed
+process, troubleshooting, and validation checklist.
+
+## Launcher
+
+The launcher is published by the **Launcher CI** workflow:
+
+1. Open the [Actions page](https://github.com/maldonadobenjamin2009/sonicadvance1-recomp/actions/workflows/launcher-ci.yml).
+2. Open the latest successful run.
+3. Download the SonicAdvanceLauncher-windows-x64 artifact.
+4. Extract the archive and run SonicAdvanceLauncher.exe.
+5. Select your own ROM, BIOS and the locally built SonicAdvanceRecomp.exe.
+
+The launcher itself is buildable now. Do not describe the native runner as
+playable until BIOS handoff, title screen, gameplay, controls, audio and saves
+have been verified.
+
+## Legal and distribution
+
+This is an unofficial preservation/research project and is not affiliated with
+or endorsed by SEGA or Nintendo. Sonic Advance and related marks belong to
+their respective owners. No ROM, BIOS, save or ROM-derived generated code is
+distributed here.

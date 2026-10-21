@@ -14,20 +14,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: false
       - name: Check required project files
         shell: bash
         run: |
           set -euo pipefail
           test -f README.md
+          test -f .gitmodules
+          test -f CMakeLists.txt
+          test -f game.toml
+          test -f src/main.cpp
           test -f launcher/SonicAdvanceLauncher.csproj
           test -f launcher/Program.cs
-          test -f .gitignore
-          echo "Launcher scaffold files are present."
-      - name: Verify no ROM or BIOS files are tracked
+          test -f launcher/LauncherForm.cs
+          test -f scripts/regen.ps1
+          test -f scripts/build-native.ps1
+          test -f docs/RUNTIME_INTEGRATION.md
+          grep -q 'path = gbarecomp' .gitmodules
+          test "$(git ls-files --stage gbarecomp | awk '{print $1}')" = "160000"
+          echo "Launcher and runtime integration scaffold files are present."
+      - name: Verify no ROM-derived or private game assets are tracked
         shell: bash
         run: |
-          if git ls-files | grep -E '\.(gba|sav|srm|state)$|(^|/)(roms|bios)/'; then
-            echo "Unexpected ROM/save/BIOS files are tracked."
+          set -euo pipefail
+          if git ls-files | grep -E '\.(gba|sav|srm|state)$|(^|/)(roms|bios)/|^generated/|generated_bios'; then
+            echo "Unexpected ROM, BIOS, save, or generated code is tracked."
             exit 1
           fi
-          echo "No ROM or BIOS files are tracked."
+          echo "No ROM, BIOS, save, or generated game code is tracked."

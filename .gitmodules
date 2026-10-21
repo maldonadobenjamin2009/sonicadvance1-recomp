@@ -1,0 +1,4 @@
+[submodule "gbarecomp"]
+	path = gbarecomp
+	url = https://github.com/mstan/gbarecomp.git
+	branch = main

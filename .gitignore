@@ -6,15 +6,27 @@
 *.state
 roms/
 bios/
+saves/
 
-# Build outputs
+# ROM-derived static-recompiler output and generated BIOS code: never commit
+generated/
+gbarecomp/src/runtime/generated_bios/
+
+# Build outputs and local native runtime build
 build/
 out/
 dist/
+artifacts/
+gbarecomp/build*/
 **/bin/
 **/obj/
 .vs/
 .vscode/
+
+# Runtime caches
+recomp_cache/
+cart_aot/
+.cache/
 
 # Machine-specific launcher settings
 launcher-settings.json
