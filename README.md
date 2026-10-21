@@ -63,6 +63,8 @@ An opt-in **Adaptive view** mode is also exposed in the runtime's Display settin
 
 The game-owned adapter in `src/sonic_advance_extended_view.cpp` reads the live SA1 `gStageBackgroundsRam` records and resolves margin tiles through the full `metatileMap` and `layout` sources. The PPU no longer has to reuse unrelated entries from its 32×32 hardware tilemap ring for those samples; pixels outside the authored stage map remain transparent, and margins are pillarboxed when no active stage map is available. The reference data layout comes from the open-source [Sonic Advance decompilation](https://github.com/SAT-R/sa2).
 
+The same adapter also handles the GBA's 9-bit OBJ-X wrap for the expanded right edge: on active stage views it treats the range 256–383 as positive X instead of letting it alias to the far left. This relies on Sonic Advance's existing active-entity camera window and needs real-stage validation before being considered final; the native viewport's center and guest memory are not modified.
+
 This is still experimental. The original 240×160 game simulation and central viewport remain unchanged; the expanded view reveals more of the existing stage map rather than changing physics. Sonic's entity spawn/cull guard is wider than the native viewport and accommodates the current 480-pixel ceiling, but individual actor draw checks, HUD edge anchoring, bosses, special stages, and every transition have not yet been qualified in-game. The original 240×160 mode remains the default.
 
 ## Relationship to MinishCapRecomp
