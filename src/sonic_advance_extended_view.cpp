@@ -55,8 +55,8 @@ struct BackgroundSource {
     std::uint16_t y_tiles = 0;
     std::uint16_t tilemap_base_x = 0;
     std::uint16_t tilemap_base_y = 0;
-    std::int16_t scroll_x = 0;
-    std::int16_t scroll_y = 0;
+    std::uint16_t scroll_x = 0;
+    std::uint16_t scroll_y = 0;
     std::uint16_t map_width = 0;
     std::uint16_t map_height = 0;
 };
@@ -155,8 +155,10 @@ bool read_background(const gba::GbaBus* bus, int index,
         return false;
     }
 
-    src.scroll_x = static_cast<std::int16_t>(raw_scroll_x);
-    src.scroll_y = static_cast<std::int16_t>(raw_scroll_y);
+    // The game's Background fields are u16, and its ring updater uses
+    // unsigned scrollX/scrollY before adding the tilemap-origin offsets.
+    src.scroll_x = raw_scroll_x;
+    src.scroll_y = raw_scroll_y;
     src.bg_id = static_cast<std::uint8_t>(src.flags & kBackgroundIdMask);
     src.level_map = (src.flags & kLevelMapFlag) != 0;
 
