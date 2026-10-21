@@ -21,7 +21,10 @@ endif()
 
 add_subdirectory("${GBARECOMP_ROOT}" gbarecomp_build EXCLUDE_FROM_ALL)
 
-file(GLOB GAME_GENERATED_SOURCES CONFIGURE_DEPENDS
+# regen.ps1 emits the complete source corpus before this configure step.
+# Do not use CONFIGURE_DEPENDS here: Ninja otherwise polls the generated directory
+# on every build and may loop regenerating build.ninja on Windows.
+file(GLOB GAME_GENERATED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/generated/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/generated/*.cpp")
 
