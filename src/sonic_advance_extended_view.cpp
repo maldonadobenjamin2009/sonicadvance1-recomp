@@ -208,6 +208,8 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
                          std::uint16_t* out_entry) {
     if (!out_entry || bg_id < 0 || bg_id > 3 || !g_stage_map_active)
         return 0;
+    auto* bus = gbarecomp::active_bus();
+    if (!bus) return 0;
 
     const auto& source = g_sources[static_cast<std::size_t>(bg_id)];
     if (!source.valid) return 0;
@@ -237,10 +239,9 @@ int supply_extended_tile(int bg_id, int screen_x, int screen_y,
         const int metatile_y = floor_div(tile_y, source.y_tiles);
         if (metatile_x < 0 || metatile_y < 0 ||
             metatile_x >= source.map_width || metatile_y >= source.map_height) {
-            // Out of the authored stage map: transparent tile instead of
-            // wrapping the 32x32 hardware ring back to unrelated scenery.
-            entry = 0;
-            action = 1;
+            // Out of the authored map: leave this layer transparent instead
+            // of wrapping the hardware's 32x32 ring or sampling tile zero.
+            action = 0;
         } else {
             const std::uint64_t map_index =
                 static_cast<std::uint64_t>(metatile_y) * source.map_width + metatile_x;
