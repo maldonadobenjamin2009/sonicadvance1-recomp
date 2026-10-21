@@ -2,3 +2,6 @@
 	path = gbarecomp
 	url = https://github.com/mstan/gbarecomp.git
 	branch = main
+[submodule "recomp-ui"]
+	path = recomp-ui
+	url = https://github.com/mstan/recomp-ui.git

@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
-      - name: Check required project files
+      - name: Check required project files and submodules
         shell: bash
         run: |
           set -euo pipefail
@@ -25,6 +25,8 @@ jobs:
           test -f CMakeLists.txt
           test -f game.toml
           test -f src/main.cpp
+          test -f src/game_launcher_boot.cpp
+          test -f src/game_launcher_boot.h
           test -f launcher/SonicAdvanceLauncher.csproj
           test -f launcher/Program.cs
           test -f launcher/LauncherForm.cs
@@ -32,8 +34,10 @@ jobs:
           test -f scripts/build-native.ps1
           test -f docs/RUNTIME_INTEGRATION.md
           grep -q 'path = gbarecomp' .gitmodules
+          grep -q 'path = recomp-ui' .gitmodules
           test "$(git ls-files --stage gbarecomp | awk '{print $1}')" = "160000"
-          echo "Launcher and runtime integration scaffold files are present."
+          test "$(git ls-files --stage recomp-ui | awk '{print $1}')" = "160000"
+          echo "Launcher and runtime integration source files are present."
       - name: Verify no ROM-derived or private game assets are tracked
         shell: bash
         run: |
