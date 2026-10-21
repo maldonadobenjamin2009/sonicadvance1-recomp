@@ -5,7 +5,13 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>SonicAdvanceLauncher</AssemblyName>
+    <AssemblyName>SonicAdvanceRecompBuilder</AssemblyName>
     <RootNamespace>SonicAdvanceLauncher</RootNamespace>
   </PropertyGroup>
+
+  <!-- Created by launcher-ci.yml and embedded so the downloaded builder is one EXE.
+       The payload contains open-source build sources only, never a ROM or BIOS. -->
+  <ItemGroup Condition="Exists('buildkit.zip')">
+    <EmbeddedResource Include="buildkit.zip" />
+  </ItemGroup>
 </Project>

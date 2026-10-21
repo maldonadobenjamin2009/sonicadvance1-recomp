@@ -1,0 +1,51 @@
+# Sonic Advance (USA, ASOE, revision 0).
+# ROM identity is from the No-Intro USA dump. The runner refuses a mismatched ROM.
+# Static coverage and copied-code metadata still need route-by-route validation.
+
+[game]
+name = "Sonic Advance"
+short_name = "sonic_advance"
+default_region = "usa"
+
+[program]
+name = "Sonic Advance (USA)"
+id = "ASOE"
+load_address = 0x08000000
+size = 0x00800000
+entry_pc = 0x08000000
+speculative_literal_harvest = false
+aot_scan_start = 0x08000000
+aot_scan_end = 0x08800000
+static_resume_all = true
+codegen_shards = 32
+
+[identity]
+sha1 = "d842afa7dd1e84de08addb94a51506f1bcafd551"
+md5 = "49ecc8ef1988e7ae81fbda1b4cf71eed"
+
+[bios]
+path = "../gbarecomp/bios/gba_bios.bin"
+sha1 = "300c20df6731a33952ded8c436f7f186d25d3492"
+hle = false
+skip_intro = false
+
+[rom]
+path = "../roms/sonic_advance_usa.gba"
+sha1 = "d842afa7dd1e84de08addb94a51506f1bcafd551"
+
+[save]
+type = "flash512"
+size = 65536
+path = "saves/sonic_advance_usa.sav"
+
+[runtime]
+debug_port = 19912
+window_title = "SonicAdvanceRecomp"
+
+[video]
+screen = "frontlit"
+view_width = 240
+resize_view = false
+
+[audio]
+shadow = false

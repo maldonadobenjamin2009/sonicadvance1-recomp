@@ -1,0 +1,79 @@
+name: GBARecomp and Integrated Launcher CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".gitmodules"
+      - "gbarecomp"
+      - "recomp-ui"
+      - "CMakeLists.txt"
+      - "game.toml"
+      - "src/**"
+      - "scripts/**"
+      - ".github/workflows/native-runtime-ci.yml"
+  pull_request:
+    paths:
+      - ".gitmodules"
+      - "gbarecomp"
+      - "recomp-ui"
+      - "CMakeLists.txt"
+      - "game.toml"
+      - "src/**"
+      - "scripts/**"
+      - ".github/workflows/native-runtime-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-recompiler-and-launcher:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout pinned runtime and launcher submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install MinGW, CMake, Ninja and SDL2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-SDL2
+
+      - name: Build the runtime-compatible recompiler
+        shell: msys2 {0}
+        run: |
+          cmake -S gbarecomp -B gbarecomp/build-native -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DGBARECOMP_COMPILER_CACHE=OFF
+          cmake --build gbarecomp/build-native --target gba_recompile --parallel 2
+          test -s gbarecomp/build-native/gba_recompile.exe
+          echo "The GBARecomp compiler tool built successfully."
+
+      - name: Compile-check the integrated launcher without game assets
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build-native-ui -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DSONIC_BUILD_GAME_EXECUTABLE=OFF -DGBAGAME_RECOMP_UI=ON
+          cmake --build build-native-ui --target sonic_advance_launcher_ui --parallel 2
+          echo "The integrated MinishCap-style launcher library compiled successfully."
+
+      - name: Verify local-only game build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f CMakeLists.txt
+          test -f game.toml
+          test -f src/main.cpp
+          test -f src/game_launcher_boot.cpp
+          test -f src/game_launcher_boot.h
+          test -f recomp-ui/recomp_ui.cmake
+          grep -q 'path = gbarecomp' .gitmodules
+          grep -q 'path = recomp-ui' .gitmodules
+          echo "The runtime and integrated launcher are present."
+          echo "The final game executable is built locally because ROM/BIOS/generated sources are private inputs."

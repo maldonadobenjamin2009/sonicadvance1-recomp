@@ -1,70 +1,105 @@
-# Sonic Advance 1 Recomp — launcher bootstrap
+# Sonic Advance 1 Recomp
 
-This repository is the starting point for a Windows launcher and the native
-GBARecomp integration for **Sonic Advance (GBA)**.
+Experimental native recompilation of Sonic Advance (GBA) using
+[GBARecomp](https://github.com/mstan/gbarecomp).
 
-## Current state
+## The Windows Builder EXE
 
-- The Windows launcher project can be built by GitHub Actions.
-- It lets the user select a legally obtained ROM and GBA BIOS, computes the
-  ROM SHA-1 for diagnostics (identity enforcement awaits a verified game config),
-  remembers local paths, and starts a companion
-  `SonicAdvanceRecomp.exe` when that executable has been built.
-- **The playable native runner is not in this repository yet.** A generated
-  `gbarecomp_game.lib` alone is not a game executable. The runner must link the
-  generated game code to the GBARecomp runtime and its game configuration.
-- ROMs, BIOS images, generated game code, save files, and build outputs must
-  not be committed to this public repository.
+The **SonicAdvanceRecompBuilder.exe** artifact produced by GitHub Actions is a
+single-file Windows GUI. Open it, choose your own ROM, choose a compatible GBA
+BIOS, select an output directory, and press **GENERAR EXE DEL JUEGO**. The
+builder verifies the exact ROM and BIOS revision, generates C/C++ code locally,
+builds it with GBARecomp + CMake/Ninja/GCC, and writes
+`SonicAdvanceRecomp.exe` together with the runtime DLLs, launcher assets and
+`game.toml` into your selected output folder.
 
-## References and approach
+**The builder itself does not need a ROM uploaded to GitHub Actions.** The ROM
+and BIOS are selected in the downloaded Windows application and stay on your
+computer; they are not transmitted to GitHub and are not included in the output.
+The build kit is embedded in the builder EXE.
 
-The intended native port layout follows the game integration used by
-[mstan/MinishCapRecomp](https://github.com/mstan/MinishCapRecomp) and the
-Gen 3 native recompiler projects
-[mstan/EmeraldRecomp](https://github.com/mstan/EmeraldRecomp),
-[mstan/FireRedLeafGreenRecomp](https://github.com/mstan/FireRedLeafGreenRecomp),
-and [mstan/RubySapphireRecomp](https://github.com/mstan/RubySapphireRecomp):
-a per-game runtime configuration, a host executable, runtime linkage, ROM/BIOS
-identity checks, and a pre-boot launcher.
+### Requirements
 
-[bryanthaboi/gen1recomp](https://github.com/bryanthaboi/gen1recomp) is a
-separate LÖVE2D-based native recreation, not a static recompiler. Its useful
-product-level ideas for this project are ROM import/verification, multiple
-local profiles, persistent settings, and keyboard/controller configuration;
-its engine is not interchangeable with GBARecomp.
+The builder needs an MSYS2 native toolchain installed locally: **MINGW64 or UCRT64**, including GCC/G++, CMake, Ninja and SDL2. It detects either complete environment and runs the tools for you; you do not have to type the CMake/build commands manually. The embedded GBARecomp CLI includes its required MinGW runtime DLLs. If tools are missing, the Builder lists what's missing and gives the matching pacman commands.
 
-## Build the launcher locally (Windows)
+Install/update MSYS2 from [msys2.org](https://www.msys2.org/). Open the **MSYS2
+MINGW64** terminal and run:
 
-Install the .NET 8 SDK, then run from the repository root:
+~~~bash
+pacman -Suy
+~~~
 
-```powershell
-dotnet publish .\launcher\SonicAdvanceLauncher.csproj -c Release -r win-x64 --self-contained true
-```
+Restart the terminal if requested, repeat `pacman -Suy` until fully updated,
+then install:
 
-The output is placed at:
+~~~bash
+pacman -S --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-SDL2 git
+~~~
 
-```text
-launcher/bin/Release/net8.0-windows/win-x64/publish/SonicAdvanceLauncher.exe
-```
+Common paths are `C:\msys64\mingw64\bin` and `C:\msys64\ucrt64\bin`. Use a consistent package family inside one MSYS2 environment; don't mix MINGW64 package names into UCRT64.
 
-The same build is run by the `Launcher CI` workflow. Download its
-`SonicAdvanceLauncher-windows-x64` artifact from the Actions run.
+### Download the Builder
 
-## Running it
+Open the [Sonic Advance Recomp Builder EXE workflow](https://github.com/maldonadobenjamin2009/sonicadvance1-recomp/actions/workflows/launcher-ci.yml), select the latest successful run, and download the artifact named
+`SonicAdvanceRecompBuilder-windows-x64`. Extract the artifact ZIP and run
+`SonicAdvanceRecompBuilder.exe`.
 
-Place `SonicAdvanceLauncher.exe` next to `SonicAdvanceRecomp.exe`, or select
-the native runner manually in the launcher. Select your own Sonic Advance ROM
-and GBA BIOS. The ROM/BIOS are not included in this repository or workflow.
+Choose these items in the app:
+1. Your **Sonic Advance USA (ASOE, revision 0)** ROM.
+2. A compatible retail GBA BIOS image.
+3. The output folder for the game executable.
 
-The launcher can start only a compatible native runner; it cannot convert a
-ROM or turn `gbarecomp_game.lib` into a playable game on its own.
+The exact accepted ROM SHA-1 is
+`d842afa7dd1e84de08addb94a51506f1bcafd551`; the GBA BIOS SHA-1 is
+`300c20df6731a33952ded8c436f7f186d25d3492`. Other ROM revisions are rejected
+until they have a separately verified configuration. The generated executable
+is an experimental port and is not yet guaranteed to boot or be fully playable.
 
-## Next native-integration milestone
+## Fullscreen and widescreen (experimental)
 
-1. Import the GBARecomp runtime and launcher UI as pinned dependencies.
-2. Add verified Sonic Advance game configuration and symbol/function metadata.
-3. Regenerate code using the runtime-compatible `gba_recompile` flow.
-4. Link the generated sources with the runtime to produce
-   `SonicAdvanceRecomp.exe`.
-5. Add runtime smoke tests for startup, input, video, audio, saves, and clean
-   shutdown before publishing a playable build.
+The runner enables a freely resizable SDL window. **Alt+Enter** toggles borderless fullscreen by default; the shared runtime settings let you rebind the hotkey. The image keeps its GBA aspect ratio instead of stretching to fill the display.
+
+**Adaptive view / Vista adaptativa** follows the live drawable aspect ratio, rather than stopping at a 480-pixel logical width. Sonic Advance now requests the shared PPU's full horizontal capacity: up to 896 logical pixels (328 extra pixels per side) at the original 160-pixel height. The integrated pre-boot launcher exposes the adaptive option and the Builder enables it by default for a fresh configuration; the launcher remembers the choice in `config.ini`. Enable fullscreen in the launcher (or press **Alt+Enter** while playing) to use the monitor's aspect ratio. This uses the same shared `RunOptions` capability as MinishCapRecomp and EmeraldRecomp.
+
+The game-owned adapter in `src/sonic_advance_extended_view.cpp` reads the live SA1 `gStageBackgroundsRam` records and resolves margin tiles through the full `metatileMap` and `layout` sources. The PPU no longer has to reuse unrelated entries from its 32×32 hardware tilemap ring for those samples; pixels outside the authored stage map remain transparent, and margins are pillarboxed when no active stage map is available. The reference data layout comes from the open-source [Sonic Advance decompilation](https://github.com/SAT-R/sa2).
+
+The same adapter also handles the GBA's 9-bit OBJ-X wrap for the expanded right edge: on active stage views it treats the range 256–383 as positive X instead of letting it alias to the far left. This relies on Sonic Advance's existing active-entity camera window and needs real-stage validation before being considered final; the native viewport's center and guest memory are not modified.
+
+This is still experimental. The original 240×160 game simulation and central viewport remain unchanged; the expanded view reveals more of the existing stage map rather than changing physics. Sonic's entity spawn/cull guard is wider than the native viewport and accommodates the current 480-pixel ceiling, but individual actor draw checks, HUD edge anchoring, bosses, special stages, and every transition have not yet been qualified in-game. The original 240×160 mode remains available by disabling **Adaptive view / Vista adaptativa** in the launcher. The 896px figure is the engine's maximum storage capacity, not a promise that every scene can safely display that much world; extreme aspect ratios still need in-game validation for object culling, HUD layout, bosses, and transitions.
+
+## Relationship to MinishCapRecomp
+
+[MinishCapRecomp](https://github.com/mstan/MinishCapRecomp) does not create a new
+EXE in its launcher at runtime. Its static game code is generated during the
+build, linked into the game EXE, and its pre-boot launcher asks the player for
+the matching ROM/BIOS to run. This project follows that model for the game
+runner and adds a separate **builder EXE** to automate the native generation
+and compilation after the user selects their local files.
+
+The integrated game executable includes the [recomp-ui](https://github.com/mstan/recomp-ui)
+pre-boot launcher, based on the same pattern used by MinishCapRecomp.
+
+## Build from source
+
+Requirements: Git, .NET 8 SDK, CMake, Ninja, and MSYS2 MINGW64 GCC/G++ and SDL2.
+Initialize the pinned GBARecomp and recomp-ui submodules:
+
+~~~powershell
+git submodule update --init --recursive
+~~~
+
+Place your own files locally (never commit them), then run:
+
+~~~powershell
+$env:Path = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$env:Path"
+.\scripts\build-native.ps1 -Rom "C:\path\to\sonic_advance_usa.gba" -Bios "C:\path\to\gba_bios.bin"
+~~~
+
+Output: `build-native/SonicAdvanceRecomp.exe`. ROM/BIOS-generated C/C++ files,
+ROMs, BIOS dumps, and saves must never be committed.
+
+## Legal / distribution
+
+Unofficial preservation and research project; not affiliated with SEGA or
+Nintendo. No copyrighted ROM or BIOS data is distributed. The builder embeds
+open-source source code and a prebuilt GBARecomp CLI only.
