@@ -206,6 +206,20 @@ bool read_background(const gba::GbaBus* bus, int index,
     return true;
 }
 
+// GBA OAM stores X in 9 bits. Hardware-compatible decoding treats
+// 256..511 as -256..-1, which makes a live actor that the game's existing
+// camera retention still keeps at X=256..359 disappear onto the left edge.
+// SA1's stage entity window begins at camera.x-128, so aliases in 256..383
+// cannot be live ordinary world objects on the left; reinterpret them as
+// their positive coordinate only in the expanded stage presentation. The
+// renderer clips values beyond the configured right edge (currently X=360).
+int resolve_extended_object_x(int raw_x, int* out_x) {
+    if (!out_x || !g_stage_map_active || raw_x < 256 || raw_x >= 384)
+        return 0;
+    *out_x = raw_x;
+    return 1;
+}
+
 int supply_extended_tile(int bg_id, int screen_x, int screen_y,
                          std::uint16_t* out_entry) {
     if (!out_entry || bg_id < 0 || bg_id > 3 || !g_stage_map_active)
@@ -313,6 +327,7 @@ void install_extended_view(std::uint32_t, std::uint32_t) {
     g_last_tile = {};
     g_stage_map_active = false;
     gba::g_ws_tilemap_provider = &supply_extended_tile;
+    gba::g_ws_obj_x_provider = &resolve_extended_object_x;
     // The provider returns an authored tile or transparent for every margin
     // sample. Never fall back to the hardware's wrapping 32x32 tilemap ring.
     gba::g_ws_authored_margin_layers = 1;
